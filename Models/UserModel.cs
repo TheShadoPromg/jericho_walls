@@ -24,6 +24,7 @@ namespace rde.edu.do_jericho_walls.Models
 
         [JsonProperty("token_duration")]
         public int TokenDuration { get; set; }
+
         public bool Active { get; set; }
 
         [JsonProperty("service_permissions", NullValueHandling = NullValueHandling.Ignore, DefaultValueHandling = DefaultValueHandling.Ignore)]
@@ -39,7 +40,7 @@ namespace rde.edu.do_jericho_walls.Models
     {
         public string Name { get; set; }
 
-        public string Identifier { get; set; }
+        public Guid Identifier { get; set; }
 
         [JsonProperty("has_access")]
         public bool HasAccess { get; set; }
@@ -62,19 +63,19 @@ namespace rde.edu.do_jericho_walls.Models
 
     public class UserModelValidator : AbstractValidator<UserModel>
     {
-        public UserModelValidator()
+        public UserModelValidator(bool update = false)
         {
             RuleFor(m => m.FirstName)
                 .Cascade(CascadeMode.StopOnFirstFailure)
                 .NotEmpty().WithMessage("El {PropertyName} es requerido")
-                .Length(2, 96).WithMessage("El {PropertyName} debe tener mínimo {MinLength} y máximo {MaxLength}. El {PropertyName} tiene una longitud de {TotalLength}")
+                .Length(2, 96).WithMessage("El {PropertyName} debe tener mínimo {MinLength} y máximo {MaxLength} caracteres. El {PropertyName} tiene una longitud de {TotalLength} caracteres.")
                 .Must(ValidName).WithMessage("El {PropertyName} contiene caracteres inválidos.")
                 .WithName("nombre");
 
             RuleFor(m => m.LastName)
                .Cascade(CascadeMode.StopOnFirstFailure)
                .NotEmpty().WithMessage("El {PropertyName} es requerido")
-               .Length(2, 96).WithMessage("El {PropertyName} debe tener mínimo {MinLength} y máximo {MaxLength}. El {PropertyName} tiene una longitud de {TotalLength}")
+               .Length(2, 96).WithMessage("El {PropertyName} debe tener mínimo {MinLength} y máximo {MaxLength} caracteres. El {PropertyName} tiene una longitud de {TotalLength} caracteres.")
                .Must(ValidName).WithMessage("El {PropertyName} contiene caracteres inválidos.")
                .WithName("apellido");
 
@@ -84,12 +85,15 @@ namespace rde.edu.do_jericho_walls.Models
                .EmailAddress().WithMessage("El {PropertyName} es invalido.")
                .WithName("correo electrónico");
 
-            RuleFor(m => m.Password)
-               .Cascade(CascadeMode.StopOnFirstFailure)
-               .NotEmpty().WithMessage("La {PropertyName} es requerida.")
-               .Length(8, -1).WithMessage("La {PropertyName} debe tener mínimo {MinLength} caracteres. La {PropertyName} tiene una longitud de {TotalLength}")
-               .Must(ValidPassword).WithMessage("La {PropertyName} debe tener mínimo un dígito, una letra mayúscula y otra minúscula.")
-               .WithName("contraseña");
+            if (!update)
+            {
+                RuleFor(m => m.Password)
+                   .Cascade(CascadeMode.StopOnFirstFailure)
+                   .NotEmpty().WithMessage("La {PropertyName} es requerida.")
+                   .Length(8, -1).WithMessage("La {PropertyName} debe tener mínimo {MinLength} caracteres. La {PropertyName} tiene una longitud de {TotalLength}")
+                   .Must(ValidPassword).WithMessage("La {PropertyName} debe tener mínimo un dígito, una letra mayúscula y otra minúscula.")
+                   .WithName("contraseña");
+            }
 
             RuleFor(m => m.TokenDuration)
                .Cascade(CascadeMode.StopOnFirstFailure)

@@ -10,6 +10,7 @@ using System;
 using rde.edu.do_jericho_walls.Helpers;
 using System.Linq;
 using System.Collections.Generic;
+using System.Transactions;
 
 namespace rde.edu.do_jericho_walls.Repositories
 {
@@ -49,12 +50,12 @@ namespace rde.edu.do_jericho_walls.Repositories
                 param: new { p_id = id },
                 map: (u, service, p) =>
                 {
-                    if(user == null)
+                    if (user == null)
                     {
                         user = u;
                     }
 
-                    if(service != null)
+                    if (service != null)
                     {
                         var s = user.ServicePermissions.Where(s => s.Name == service.Name).FirstOrDefault();
 
@@ -84,6 +85,10 @@ namespace rde.edu.do_jericho_walls.Repositories
             return result.Distinct().ToList().First();
         }
 
+        /// <summary>
+        /// Get a list of <see cref="UserModel"/> with there given grants.
+        /// </summary>
+        /// <returns></returns>
         public async Task<IList<UserModel>> GetAll()
         {
             var users = new Dictionary<int, UserModel>();
@@ -169,6 +174,72 @@ namespace rde.edu.do_jericho_walls.Repositories
             model.Id = id;
             model.Identifier = guid;
             return model;
+        }
+
+        /// <summary>
+        /// Creates a Dapper transaction and updates the user personal information. It updates
+        /// the services access and the services' permissions' access.
+        /// </summary>
+        /// 
+        /// <param name="model"></param>
+        /// <param name="accessBy"></param>
+        /// <returns></returns>
+        public async Task Updated(UserModel model, Guid accessBy)
+        {
+            using (var transaction = new TransactionScope())
+            {
+                var conn = Connection;
+
+                await conn.ExecuteAsync(
+                    "UpdateUser",
+                    new
+                    {
+                        p_id = model.Id,
+                        p_identifier = model.Identifier,
+                        p_email = model.Email,
+                        p_firstName = model.FirstName,
+                        p_lastName = model.LastName,
+                        p_active = model.Active,
+                        p_tokenDuration = model.TokenDuration
+                    },
+                    commandType: CommandType.StoredProcedure
+                );
+
+                foreach (var service in model.ServicePermissions)
+                {
+                    await conn.ExecuteAsync(
+                        "UpdateOrCreateServiceUserAccess",
+                        new
+                        {
+                            p_serviceIdentifier = service.Identifier,
+                            p_email = model.Email,
+                            p_hasAccess = service.HasAccess,
+                            p_createdByUserIdentifier = accessBy,
+                            p_recordBy = config.GetValue<string>("SystemName")
+                        },
+                        commandType: CommandType.StoredProcedure
+                    );
+
+                    foreach(var permission in service.Permissions)
+                    {
+                        await conn.ExecuteAsync(
+                        "UpdateOrCreateServiceUserPermissions",
+                        new
+                        {
+                            p_serviceIdentifier = service.Identifier,
+                            p_email = model.Email,
+                            p_permissionName = permission.Name,
+                            p_hasAccess = permission.HasAccess,
+                            p_createdByUserIdentifier = accessBy,
+                            p_recordBy = config.GetValue<string>("SystemName")
+                        },
+                        commandType: CommandType.StoredProcedure
+                    );
+                    }
+                }
+
+                transaction.Complete();
+            }
         }
     }
 }

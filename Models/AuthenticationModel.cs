@@ -25,6 +25,12 @@ namespace rde.edu.do_jericho_walls.Models
         public UserModel Payload { get; set; }
     }
 
+    public class AuthorizationModel
+    {
+        public UserModel User { get; set; }
+        public bool Forbiden { get; set; }
+    }
+
     public class AuthenticationModelValidator : AbstractValidator<AuthenticationModel>
     {
         public AuthenticationModelValidator()

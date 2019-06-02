@@ -109,13 +109,16 @@ namespace rde.edu.do_jericho_walls.Helpers
         /// Verifies the given JWT that should be present in the authorization header. Verifies the expiration
         /// time, the issuer and the token signature.
         /// </summary>
+        /// 
         /// <param name="authorization">This should be the authorization HTTP header. The helper will do all the parsing.</param>
         /// <param name="repository">An <see cref="IAuthenticationRepository"/> to get the public key of the user and verify the token.</param>
         /// <param name="logger"></param>
         /// <param name="issuer">Who issue the token</param>
         /// <param name="permision">The name of a permission that the user needs to have to fulfill a request.</param>
-        /// <returns></returns>
-        public static async Task<UserModel> Authorize(string authorization, IAuthenticationRepository repository, ILogger logger, string issuer, string permision)
+        /// <returns>Returns an <see cref="AuthorizationModel"/> If the token is valid it will return a instance of the class with the user. But if
+        /// the user doesn't has access to the server or the required permission it will set <see cref="AuthorizationModel.Forbiden"/>
+        /// to True</returns>
+        public static async Task<AuthorizationModel> Authorize(string authorization, IAuthenticationRepository repository, ILogger logger, string issuer, string permision)
         {
             try
             {
@@ -176,17 +179,29 @@ namespace rde.edu.do_jericho_walls.Helpers
                 //Verify if it has access to the service
                 var service = user.ServicePermissions.First(service => service.Name == "jericho-walls");
 
-                if (!service.HasAccess) return null;
+                if (!service.HasAccess) return new AuthorizationModel()
+                {
+                    User = user,
+                    Forbiden = true
+                };
 
                 //Verify if it has the given permission 
                 if (permision != null)
                 {
                     var perm = service.Permissions.First(permission => permission.Name == permision);
 
-                    if (!perm.HasAccess) return null;
+                    if (!perm.HasAccess) return new AuthorizationModel()
+                    {
+                        User = user,
+                        Forbiden = true
+                    };
                 }
 
-                return user;
+                return new AuthorizationModel()
+                {
+                    User = user,
+                    Forbiden = false
+                };
             }
             catch(Exception e)
             {

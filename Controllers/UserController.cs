@@ -21,7 +21,7 @@ namespace rde.edu.do_jericho_walls.Controllers
         private readonly ILogger<UserController> _logger;
 
         public UserController(IAuthenticationRepository authenticationRepository,
-                              IUserRepository repository, 
+                              IUserRepository repository,
                               IConfiguration config,
                               ILogger<UserController> logger)
         {
@@ -35,7 +35,7 @@ namespace rde.edu.do_jericho_walls.Controllers
         [HttpGet]
         public async Task<IActionResult> Get()
         {
-            var user = await AuthenticationHelper.Authorize(
+            var authorization = await AuthenticationHelper.Authorize(
                 Request.Headers["Authorization"],
                 _authenticationRepository,
                 _logger,
@@ -43,21 +43,19 @@ namespace rde.edu.do_jericho_walls.Controllers
                 "read-all-users"
             );
 
-            if (user == null)
+            if (authorization == null)
             {
                 return Unauthorized();
+            }
+
+            if (authorization.Forbiden)
+            {
+                return Forbid();
             }
 
             var users = await _repository.GetAll();
 
             return Ok(users);
-        }
-
-        // GET: api/User/5
-        [HttpGet("{id}")]
-        public UserModel Get(int id)
-        {
-            return new UserModel();
         }
 
         // POST: api/User
@@ -105,10 +103,57 @@ namespace rde.edu.do_jericho_walls.Controllers
             }
         }
 
-        // PUT: api/User/5
-        [HttpPut("{id}")]
-        public void Put(int id, [FromBody] UserModel model)
+        // PUT: api/User
+        [HttpPut]
+        public async Task<IActionResult> Put([FromBody] UserModel model)
         {
+            var authorization = await AuthenticationHelper.Authorize(
+                Request.Headers["Authorization"],
+                _authenticationRepository,
+                _logger,
+                _config.GetValue<string>("JWTIssuer"),
+                "update-user"
+            );
+
+            if (authorization == null)
+            {
+                return Unauthorized();
+            }
+
+            if(authorization.Forbiden)
+            {
+                return Forbid();
+            }
+
+            var validator = await new UserModelValidator(update: true).ValidateAsync(model);
+
+            if (!validator.IsValid)
+            {
+                var errors = validator.Errors.Select(e => new
+                {
+                    e.PropertyName,
+                    Message = e.ErrorMessage
+                });
+
+                _logger.LogInformation($"Failed to validate user. {errors}");
+                return new BadRequestObjectResult(errors);
+            }
+
+            try
+            {
+                await _repository.Updated(model, authorization.User.Identifier);
+                return NoContent();
+            }
+            catch (MySqlException sqlE)
+            {
+                _logger.LogError("Failed to update user by SqlException Message {@Message} StackTrace {@StackTrace}", sqlE.Message, sqlE.StackTrace);
+                return StatusCode(500);
+            }
+            catch (Exception e2)
+            {
+                _logger.LogError("Message {@Message} StackTrace {@StackTrace}", e2.Message, e2.StackTrace);
+                return StatusCode(500);
+            }
         }
     }
 }

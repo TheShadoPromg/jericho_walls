@@ -1,4 +1,5 @@
 ﻿using rde.edu.do_jericho_walls.Models;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -9,5 +10,6 @@ namespace rde.edu.do_jericho_walls.Interfaces
         Task<UserModel> GetById(int id);
         Task<IList<UserModel>> GetAll();
         Task<UserModel> Create(UserModel model);
+        Task Updated(UserModel model, Guid accessBy);
     }
 }
