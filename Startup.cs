@@ -1,15 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using rde.edu.do_jericho_walls.Interfaces;
 using rde.edu.do_jericho_walls.Repositories;
 
@@ -47,6 +40,13 @@ namespace rde.edu.do_jericho_walls
                 app.UseHsts();
             }
 
+            app.UseCors(builder =>
+            {
+                var cors = Configuration.GetSection("Cors");
+                builder.WithOrigins(cors.GetSection("AllowOrigins").Get<string[]>());
+                builder.WithHeaders(cors.GetSection("AllowHeaders").Get<string[]>());
+                builder.WithMethods(cors.GetSection("AllowMethods").Get<string[]>());
+            });
             app.UseHttpsRedirection();
             app.UseRouting();
             app.UseEndpoints(endpoints =>

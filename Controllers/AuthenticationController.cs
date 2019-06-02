@@ -10,7 +10,7 @@ using rde.edu.do_jericho_walls.Models;
 
 namespace rde.edu.do_jericho_walls.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/jericho_walls/[controller]")]
     [ApiController]
     public class AuthenticationController : ControllerBase
     {

@@ -1,6 +1,7 @@
 ﻿using FluentValidation;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace rde.edu.do_jericho_walls.Models
@@ -18,6 +19,32 @@ namespace rde.edu.do_jericho_walls.Models
 
         public int TokenDuration { get; set; }
         public bool Active { get; set; }
+
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore, DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public IList<Service> ServicePermissions { get; set; }
+
+        public UserModel()
+        {
+            ServicePermissions = new List<Service>();
+        }
+    }
+
+    public class Service
+    {
+        public string Name { get; set; }
+        public bool HasAccess { get; set; }
+        public IList<Permission> Permissions { get; set; }
+
+        public Service()
+        {
+            Permissions = new List<Permission>();
+        }
+    }
+
+    public class Permission
+    {
+        public string Name { get; set; }
+        public bool HasAccess { get; set; }
     }
 
     public class UserModelValidator : AbstractValidator<UserModel>

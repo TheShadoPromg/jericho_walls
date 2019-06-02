@@ -8,6 +8,8 @@ using Dapper;
 using System.Security.Cryptography;
 using System;
 using rde.edu.do_jericho_walls.Helpers;
+using System.Linq;
+using System.Collections.Generic;
 
 namespace rde.edu.do_jericho_walls.Repositories
 {
@@ -40,11 +42,46 @@ namespace rde.edu.do_jericho_walls.Repositories
         /// <returns></returns>
         public async Task<UserModel> GetById(int id)
         {
-            return await Connection.QueryFirstOrDefaultAsync<UserModel>(
-                "ReadUser",
-                new { p_id = id},
+            UserModel user = null;
+
+            var result = await Connection.QueryAsync<UserModel, Service, Permission, UserModel>(
+                "ReadUserWithGrants",
+                param: new { p_id = id },
+                map: (u, service, p) =>
+                {
+                    if(user == null)
+                    {
+                        user = u;
+                    }
+
+                    if(service != null)
+                    {
+                        var s = user.ServicePermissions.Where(s => s.Name == service.Name).FirstOrDefault();
+
+                        if (s != null)
+                        {
+                            if (p != null)
+                            {
+                                s.Permissions.Add(p);
+                            }
+                        }
+                        else
+                        {
+                            if (p != null)
+                            {
+                                service.Permissions.Add(p);
+                            }
+                            user.ServicePermissions.Add(service);
+                        }
+                    }
+
+                    return user;
+                },
+                splitOn: "name,name",
                 commandType: CommandType.StoredProcedure
             );
+
+            return result.Distinct().ToList().First();
         }
 
         /// <summary>
