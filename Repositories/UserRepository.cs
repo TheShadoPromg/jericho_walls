@@ -84,6 +84,52 @@ namespace rde.edu.do_jericho_walls.Repositories
             return result.Distinct().ToList().First();
         }
 
+        public async Task<IList<UserModel>> GetAll()
+        {
+            var users = new Dictionary<int, UserModel>();
+
+            var result = await Connection.QueryAsync<UserModel, Service, Permission, UserModel>(
+                "ReadUserWithGrantsAll",
+                map: (u, service, p) =>
+                {
+                    UserModel user;
+
+                    if (!users.TryGetValue(u.Id, out user))
+                    {
+                        user = u;
+                        users.Add(user.Id, user);
+                    }
+
+                    if (service != null)
+                    {
+                        var s = user.ServicePermissions.Where(s => s.Name == service.Name).FirstOrDefault();
+
+                        if (s != null)
+                        {
+                            if (p != null)
+                            {
+                                s.Permissions.Add(p);
+                            }
+                        }
+                        else
+                        {
+                            if (p != null)
+                            {
+                                service.Permissions.Add(p);
+                            }
+                            user.ServicePermissions.Add(service);
+                        }
+                    }
+
+                    return user;
+                },
+                splitOn: "name,name",
+                commandType: CommandType.StoredProcedure
+            );
+
+            return result.Distinct().ToList();
+        }
+
         /// <summary>
         /// Create a new user. Generates a new GUID to be inserted in the database.
         /// It creates a RSA 2048, and stored the public and private key in the database
@@ -124,6 +170,5 @@ namespace rde.edu.do_jericho_walls.Repositories
             model.Identifier = guid;
             return model;
         }
-
     }
 }

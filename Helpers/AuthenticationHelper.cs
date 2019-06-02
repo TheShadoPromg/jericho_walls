@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using rde.edu.do_jericho_walls.Interfaces;
 using rde.edu.do_jericho_walls.Models;
 using System;
@@ -8,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
+using System.Linq;
 using Trivial.Security;
 
 namespace rde.edu.do_jericho_walls.Helpers
@@ -171,6 +171,19 @@ namespace rde.edu.do_jericho_walls.Helpers
                 if (!isValid)
                 {
                     return null;
+                }
+
+                //Verify if it has access to the service
+                var service = user.ServicePermissions.First(service => service.Name == "jericho-walls");
+
+                if (!service.HasAccess) return null;
+
+                //Verify if it has the given permission 
+                if (permision != null)
+                {
+                    var perm = service.Permissions.First(permission => permission.Name == permision);
+
+                    if (!perm.HasAccess) return null;
                 }
 
                 return user;

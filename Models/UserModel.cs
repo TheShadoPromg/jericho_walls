@@ -10,17 +10,23 @@ namespace rde.edu.do_jericho_walls.Models
     {
         public int Id { get; set; }
         public Guid Identifier { get; set; }
+
+        [JsonProperty("first_name")]
         public string FirstName { get; set; }
+
+        [JsonProperty("last_name")]
         public string LastName { get; set; }
+
         public string Email { get; set; }
 
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public string Password { get; set; }
 
+        [JsonProperty("token_duration")]
         public int TokenDuration { get; set; }
         public bool Active { get; set; }
 
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore, DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [JsonProperty("service_permissions", NullValueHandling = NullValueHandling.Ignore, DefaultValueHandling = DefaultValueHandling.Ignore)]
         public IList<Service> ServicePermissions { get; set; }
 
         public UserModel()
@@ -32,7 +38,12 @@ namespace rde.edu.do_jericho_walls.Models
     public class Service
     {
         public string Name { get; set; }
+
+        public string Identifier { get; set; }
+
+        [JsonProperty("has_access")]
         public bool HasAccess { get; set; }
+
         public IList<Permission> Permissions { get; set; }
 
         public Service()
@@ -44,6 +55,8 @@ namespace rde.edu.do_jericho_walls.Models
     public class Permission
     {
         public string Name { get; set; }
+
+        [JsonProperty("has_access")]
         public bool HasAccess { get; set; }
     }
 

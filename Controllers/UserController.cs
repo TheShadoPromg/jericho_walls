@@ -40,7 +40,7 @@ namespace rde.edu.do_jericho_walls.Controllers
                 _authenticationRepository,
                 _logger,
                 _config.GetValue<string>("JWTIssuer"),
-                null
+                "read-all-users"
             );
 
             if (user == null)
@@ -48,7 +48,9 @@ namespace rde.edu.do_jericho_walls.Controllers
                 return Unauthorized();
             }
 
-            return Ok(new UserModel[] { new UserModel(), });
+            var users = await _repository.GetAll();
+
+            return Ok(users);
         }
 
         // GET: api/User/5
