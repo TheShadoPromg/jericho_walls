@@ -23,6 +23,7 @@ namespace rde.edu.do_jericho_walls
 
             services.AddTransient<IUserRepository, UserRepository>();
             services.AddTransient<IAuthenticationRepository, AuthenticationRepository>();
+            services.AddTransient<IServiceRepository, ServiceRepository>();
             services.AddLogging();
             services.AddControllers().AddNewtonsoftJson();
         }

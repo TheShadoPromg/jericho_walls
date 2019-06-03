@@ -13,17 +13,17 @@ namespace rde.edu.do_jericho_walls.Controllers
 {
     [Route("api/jericho_walls/[controller]")]
     [ApiController]
-    public class UserController : ControllerBase
+    public class ServiceController : ControllerBase
     {
         private readonly IAuthenticationRepository _authenticationRepository;
-        private readonly IUserRepository _repository;
+        private readonly IServiceRepository _repository;
         private readonly IConfiguration _config;
-        private readonly ILogger<UserController> _logger;
+        private readonly ILogger<ServiceController> _logger;
 
-        public UserController(IAuthenticationRepository authenticationRepository,
-                              IUserRepository repository,
-                              IConfiguration config,
-                              ILogger<UserController> logger)
+        public ServiceController(IAuthenticationRepository authenticationRepository, 
+                                IServiceRepository repository,
+                                IConfiguration config,
+                                ILogger<ServiceController> logger)
         {
             this._authenticationRepository = authenticationRepository;
             this._repository = repository;
@@ -31,7 +31,7 @@ namespace rde.edu.do_jericho_walls.Controllers
             this._logger = logger;
         }
 
-        // GET: api/User
+        // GET: api/Service
         [HttpGet]
         public async Task<IActionResult> Get()
         {
@@ -40,7 +40,7 @@ namespace rde.edu.do_jericho_walls.Controllers
                 _authenticationRepository,
                 _logger,
                 _config.GetValue<string>("JWTIssuer"),
-                "read-all-users"
+                "read-all-service"
             );
 
             if (authorization == null)
@@ -53,22 +53,23 @@ namespace rde.edu.do_jericho_walls.Controllers
                 return Forbid();
             }
 
-            var users = await _repository.GetAll();
+            var services = await _repository.GetAll();
 
-            return Ok(users);
+            return Ok(services);
         }
 
-        // POST: api/User
+        // POST: api/Service
         [HttpPost]
-        public async Task<IActionResult> Post([FromBody] UserModel model)
+        public async Task<IActionResult> Post([FromBody] ServiceModel model)
         {
+            //Authorize
             var authorization = await AuthenticationHelper.Authorize(
-                Request.Headers["Authorization"],
-                _authenticationRepository,
-                _logger,
-                _config.GetValue<string>("JWTIssuer"),
-                "create-user"
-            );
+                  Request.Headers["Authorization"],
+                  _authenticationRepository,
+                  _logger,
+                  _config.GetValue<string>("JWTIssuer"),
+                  "create-service"
+              );
 
             if (authorization == null)
             {
@@ -80,7 +81,8 @@ namespace rde.edu.do_jericho_walls.Controllers
                 return Forbid();
             }
 
-            var validator = await new UserModelValidator().ValidateAsync(model);
+            //Validate user data
+            var validator = await new ServiceModelValidator().ValidateAsync(model);
 
             if (!validator.IsValid)
             {
@@ -90,14 +92,15 @@ namespace rde.edu.do_jericho_walls.Controllers
                     Message = e.ErrorMessage
                 });
 
-                _logger.LogInformation($"Failed to validate user. {errors}");
+                _logger.LogInformation($"Failed to validate service. {errors}");
                 return new BadRequestObjectResult(errors);
             }
 
+            //Fulfill request
             try
             {
-                var created = await _repository.Create(model);
-                return Created("", created);
+                var service = await _repository.Create(model, authorization.User.Identifier);
+                return Created("", service);
             }
             catch (MySqlException sqlE)
             {
@@ -110,7 +113,7 @@ namespace rde.edu.do_jericho_walls.Controllers
                 }
                 else
                 {
-                    _logger.LogError("Failed to insert user by SqlException Message {@Message} StackTrace {@StackTrace}", sqlE.Message, sqlE.StackTrace);
+                    _logger.LogError("Failed to create service by SqlException Message {@Message} StackTrace {@StackTrace}", sqlE.Message, sqlE.StackTrace);
                     return StatusCode(500);
                 }
             }
@@ -121,29 +124,31 @@ namespace rde.edu.do_jericho_walls.Controllers
             }
         }
 
-        // PUT: api/User
+        // PUT: api/Service
         [HttpPut]
-        public async Task<IActionResult> Put([FromBody] UserModel model)
+        public async Task<IActionResult> Put([FromBody] ServiceModel model)
         {
+            //Authorize
             var authorization = await AuthenticationHelper.Authorize(
-                Request.Headers["Authorization"],
-                _authenticationRepository,
-                _logger,
-                _config.GetValue<string>("JWTIssuer"),
-                "update-user"
-            );
+               Request.Headers["Authorization"],
+               _authenticationRepository,
+               _logger,
+               _config.GetValue<string>("JWTIssuer"),
+               "update-service"
+           );
 
             if (authorization == null)
             {
                 return Unauthorized();
             }
 
-            if(authorization.Forbiden)
+            if (authorization.Forbiden)
             {
                 return Forbid();
             }
 
-            var validator = await new UserModelValidator(update: true).ValidateAsync(model);
+            //Validate user data
+            var validator = await new ServiceModelValidator().ValidateAsync(model);
 
             if (!validator.IsValid)
             {
@@ -153,18 +158,19 @@ namespace rde.edu.do_jericho_walls.Controllers
                     Message = e.ErrorMessage
                 });
 
-                _logger.LogInformation($"Failed to validate user. {errors}");
+                _logger.LogInformation($"Failed to validate service. {errors}");
                 return new BadRequestObjectResult(errors);
             }
-
+           
+            //Fulfill request
             try
             {
-                await _repository.Updated(model, authorization.User.Identifier);
+                await _repository.Update(model, authorization.User.Identifier);
                 return NoContent();
             }
             catch (MySqlException sqlE)
             {
-                _logger.LogError("Failed to update user by SqlException Message {@Message} StackTrace {@StackTrace}", sqlE.Message, sqlE.StackTrace);
+                _logger.LogError("Failed to update service by SqlException Message {@Message} StackTrace {@StackTrace}", sqlE.Message, sqlE.StackTrace);
                 return StatusCode(500);
             }
             catch (Exception e2)

@@ -97,9 +97,7 @@ namespace rde.edu.do_jericho_walls.Repositories
                 "ReadUserWithGrantsAll",
                 map: (u, service, p) =>
                 {
-                    UserModel user;
-
-                    if (!users.TryGetValue(u.Id, out user))
+                    if (!users.TryGetValue(u.Id, out UserModel user))
                     {
                         user = u;
                         users.Add(user.Id, user);
