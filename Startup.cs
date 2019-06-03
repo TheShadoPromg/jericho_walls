@@ -50,7 +50,7 @@ namespace rde.edu.do_jericho_walls
                 builder.WithHeaders(cors.GetSection("AllowHeaders").Get<string[]>());
                 builder.WithMethods(cors.GetSection("AllowMethods").Get<string[]>());
             });
-            app.UseHttpsRedirection();
+            //app.UseHttpsRedirection();
             app.UseRouting();
             app.UseEndpoints(endpoints =>
             {

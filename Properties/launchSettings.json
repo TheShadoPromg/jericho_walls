@@ -30,12 +30,10 @@
       "commandName": "Docker",
       "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}/api/values",
       "environmentVariables": {
-        "ASPNETCORE_URLS": "https://+:443;http://+:80",
-        "ASPNETCORE_HTTPS_PORT": "44348"
+        "ASPNETCORE_URLS": "http://+:80",
       },
-      "httpPort": 52907,
-      "useSSL": true,
-      "sslPort": 44348
+      "httpPort": 5000,
+      "useSSL": false
     }
   }
 }

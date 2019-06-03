@@ -285,6 +285,7 @@ namespace rde.edu.do_jericho_walls.Helpers
                     .Where(p => p.HasAccess == true)
                     .Select(p => p.Name)
                     .ToList();
+                user.ServicePermissions = null;
 
                 return new AuthorizationModel()
                 {

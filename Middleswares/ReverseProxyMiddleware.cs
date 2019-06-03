@@ -8,6 +8,7 @@ using rde.edu.do_jericho_walls.Repositories;
 using System;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace rde.edu.do_jericho_walls.Middleswares
@@ -75,7 +76,9 @@ namespace rde.edu.do_jericho_walls.Middleswares
                 if (targetUri != null)
                 {
                     var j = JsonConvert.SerializeObject(authorization.User);
-                    context.Request.Headers.Add("SIGIRDE-User", j);
+                    logger.LogInformation($"User: {Convert.ToBase64String(Encoding.UTF8.GetBytes(j))}");
+
+                    context.Request.Headers.Add("SIGIRDE-User", Convert.ToBase64String(Encoding.UTF8.GetBytes(j)));
 
                     var targetRequestMessage = CreateTargetMessage(context, targetUri);
 
