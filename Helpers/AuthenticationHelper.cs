@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Xml.Serialization;
 using System.Linq;
 using Trivial.Security;
+using System.Collections.Generic;
 
 namespace rde.edu.do_jericho_walls.Helpers
 {
@@ -92,7 +93,7 @@ namespace rde.edu.do_jericho_walls.Helpers
             pri.ImportParameters(DeserializeRSAKey(privateKey));
 
             var sign = RSASignatureProvider.CreateRS512(pri, needDisposeAlgorithmAutomatically: true);
-            
+
             var payload = new AuthenticationJWT()
             {
                 Issuer = issuer,
@@ -149,6 +150,7 @@ namespace rde.edu.do_jericho_walls.Helpers
                 var secrets = await repository.GetRSAKeys(user);
 
                 if (secrets == null) return null;
+                if (!secrets.Active) return null; //Account is not active
 
                 var pub = new RSACryptoServiceProvider();
                 pub.ImportParameters(DeserializeRSAKey(secrets.PublicKey));
@@ -203,7 +205,94 @@ namespace rde.edu.do_jericho_walls.Helpers
                     Forbiden = false
                 };
             }
-            catch(Exception e)
+            catch (Exception e)
+            {
+                logger.LogWarning("Authorizing token throw exception {@Exception} {@StackStace}", e.Message, e.StackTrace);
+                return null;
+            }
+        }
+
+        public static async Task<AuthorizationModel> AuthorizeForProxy(string authorization, IAuthenticationRepository repository, ILogger logger, string issuer, string service)
+        {
+            try
+            {
+                //Check for token in the authorization header
+                if (authorization == null) return null;
+
+                var token = authorization.Split("Bearer ")[1];
+
+                if (token == null || (token != null && token.Length < 10)) return null;
+
+                //Get user from claims
+                var concreteToken = new JsonWebToken<AuthenticationJWT>.Parser(token);
+
+                if (concreteToken == null) return null;
+
+                var payload = concreteToken.GetPayload();
+
+                if (payload == null) return null;
+
+                var user = payload.Payload;
+
+                if (user == null || (user != null && (user.Id <= 0 || user.Identifier == null || user.Email == null)))
+                {
+                    return null;
+                }
+
+                //Get user public and private keys from database
+                var secrets = await repository.GetRSAKeys(user);
+
+                if (secrets == null) return null;
+
+                if (!secrets.Active) return null; //Account is not active
+
+                var pub = new RSACryptoServiceProvider();
+                pub.ImportParameters(DeserializeRSAKey(secrets.PublicKey));
+
+                var sign = RSASignatureProvider.CreateRS512(pub,
+                    hasPrivateKey: false,
+                    needDisposeAlgorithmAutomatically: true
+                );
+
+                //Verify token
+                if (DateTime.UtcNow >= payload.Expiration)
+                {
+                    return null;
+                }
+
+                if (issuer != payload.Issuer)
+                {
+                    return null;
+                }
+
+                var isValid = concreteToken.Verify(sign, checkName: true);
+
+                if (!isValid)
+                {
+                    return null;
+                }
+
+                //Verify if it has access to the service
+                var s = user.ServicePermissions.First(s => s.Name == service);
+
+                if (!s.HasAccess) return new AuthorizationModel()
+                {
+                    User = user,
+                    Forbiden = true
+                };
+
+                user.Permissions = s.Permissions
+                    .Where(p => p.HasAccess == true)
+                    .Select(p => p.Name)
+                    .ToList();
+
+                return new AuthorizationModel()
+                {
+                    User = user,
+                    Forbiden = false
+                };
+            }
+            catch (Exception e)
             {
                 logger.LogWarning("Authorizing token throw exception {@Exception} {@StackStace}", e.Message, e.StackTrace);
                 return null;

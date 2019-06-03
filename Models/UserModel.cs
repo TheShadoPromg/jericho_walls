@@ -30,6 +30,9 @@ namespace rde.edu.do_jericho_walls.Models
         [JsonProperty("service_permissions", NullValueHandling = NullValueHandling.Ignore, DefaultValueHandling = DefaultValueHandling.Ignore)]
         public IList<Service> ServicePermissions { get; set; }
 
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore, DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public IList<string> Permissions { get; set; }
+
         public UserModel()
         {
             ServicePermissions = new List<Service>();

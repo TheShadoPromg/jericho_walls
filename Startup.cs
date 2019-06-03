@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using rde.edu.do_jericho_walls.Interfaces;
+using rde.edu.do_jericho_walls.Middleswares;
 using rde.edu.do_jericho_walls.Repositories;
 
 namespace rde.edu.do_jericho_walls
@@ -24,6 +25,7 @@ namespace rde.edu.do_jericho_walls
             services.AddTransient<IUserRepository, UserRepository>();
             services.AddTransient<IAuthenticationRepository, AuthenticationRepository>();
             services.AddTransient<IServiceRepository, ServiceRepository>();
+            services.AddTransient<IReverseProxyRepository, ReverseProxyRepository>();
             services.AddLogging();
             services.AddControllers().AddNewtonsoftJson();
         }
@@ -54,6 +56,7 @@ namespace rde.edu.do_jericho_walls
             {
                 endpoints.MapControllers();
             });
+            app.UseMiddleware<ReverseProxyMiddleware>();
         }
     }
 }
