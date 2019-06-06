@@ -12,5 +12,7 @@ namespace rde.edu.do_jericho_walls.Interfaces
         Task<UserModel> Create(UserModel model);
         Task Updated(UserModel model, Guid accessBy);
         Task<string> ResetPassword(UserModel model, Guid accessBy);
+
+        Task<UserModel> GetAllUsersByService(UserModel model, string service);
     }
 }

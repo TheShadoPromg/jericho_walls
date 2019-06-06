@@ -279,5 +279,9 @@ namespace rde.edu.do_jericho_walls.Repositories
             return $"RDE27{str}";
         }
 
+        public Task<UserModel> GetAllUsersByService(UserModel model, string service)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
