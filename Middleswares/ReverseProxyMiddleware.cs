@@ -76,11 +76,9 @@ namespace rde.edu.do_jericho_walls.Middleswares
                 if (targetUri != null)
                 {
                     var j = JsonConvert.SerializeObject(authorization.User);
-                    logger.LogInformation($"User: {Convert.ToBase64String(Encoding.UTF8.GetBytes(j))}");
-
-                    context.Request.Headers.Add("SIGIRDE-User", Convert.ToBase64String(Encoding.UTF8.GetBytes(j)));
 
                     var targetRequestMessage = CreateTargetMessage(context, targetUri);
+                    targetRequestMessage.Headers.Add("SIGIRDE-User", Convert.ToBase64String(Encoding.UTF8.GetBytes(j)));
 
                     using var responseMessage = await _httpClient.SendAsync(targetRequestMessage, HttpCompletionOption.ResponseHeadersRead, context.RequestAborted);
                     context.Response.StatusCode = (int)responseMessage.StatusCode;
