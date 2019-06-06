@@ -218,7 +218,7 @@ namespace rde.edu.do_jericho_walls.Repositories
                         commandType: CommandType.StoredProcedure
                     );
 
-                    foreach(var permission in service.Permissions)
+                    foreach (var permission in service.Permissions)
                     {
                         await conn.ExecuteAsync(
                         "UpdateOrCreateServiceUserPermissions",
@@ -239,5 +239,45 @@ namespace rde.edu.do_jericho_walls.Repositories
                 transaction.Complete();
             }
         }
+
+        public async Task<string> ResetPassword(UserModel model, Guid accessBy)
+        {
+            //Generate RSA keys for JWTs
+            var csp = RSA.Create(2048);
+            var publicKey = csp.ExportParameters(false);
+            var privateKey = csp.ExportParameters(true);
+            var pass = RandomString();
+
+            if(model.Password != null)
+            {
+                pass = model.Password;
+            }
+
+            var password = AuthenticationHelper.HashPassword(pass);
+
+            await Connection.ExecuteAsync(
+                "UpdateResetPassword",
+                new
+                {
+                    p_email = model.Email,
+                    p_password = password,
+                    p_publicKey = AuthenticationHelper.SerializeRSAKey(publicKey),
+                    p_privateKey = AuthenticationHelper.SerializeRSAKey(privateKey),
+                },
+                commandType: CommandType.StoredProcedure
+            );
+
+            return pass;
+        }
+
+        public string RandomString()
+        {
+            Random random = new Random();
+            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789asdfghjklqwertyuiopzxcvbnm";
+            var str =  new string(Enumerable.Repeat(chars, 8)
+              .Select(s => s[random.Next(s.Length)]).ToArray());
+            return $"RDE27{str}";
+        }
+
     }
 }

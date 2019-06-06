@@ -121,6 +121,72 @@ namespace rde.edu.do_jericho_walls.Controllers
             }
         }
 
+        [HttpPost]
+        [Route("resetpassword")]
+        public async Task<IActionResult> PostResetPassword([FromBody] UserModel model)
+        {
+            var authorization = await AuthenticationHelper.Authorize(
+                Request.Headers["Authorization"],
+                _authenticationRepository,
+                _logger,
+                _config.GetValue<string>("JWTIssuer"),
+                "reset-user-password"
+            );
+
+            if (authorization == null)
+            {
+                return StatusCode(401);
+            }
+
+            if (authorization.Forbiden)
+            {
+                return StatusCode(403);
+            }
+
+            var validator = await new UserModelValidator(resetPassword: true).ValidateAsync(model);
+
+            if (!validator.IsValid)
+            {
+                var errors = validator.Errors.Select(e => new
+                {
+                    e.PropertyName,
+                    Message = e.ErrorMessage
+                });
+
+                _logger.LogInformation($"Failed to validate user. {errors}");
+                return new BadRequestObjectResult(errors);
+            }
+
+            try
+            {
+                var newPassword = await _repository.ResetPassword(model, new Guid());
+                return Ok(new
+                {
+                    Message = model.Password != null ? "Se ha establecido la nueva contraseña correctamente" : $"Su nueva contraseña es: {newPassword}"
+                });
+            }
+            catch (MySqlException sqlE)
+            {
+                if (sqlE.Number == 409)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        sqlE.Message,
+                    });
+                }
+                else
+                {
+                    _logger.LogError("Failed to reset user password by SqlException Message {@Message} StackTrace {@StackTrace}", sqlE.Message, sqlE.StackTrace);
+                    return StatusCode(500);
+                }
+            }
+            catch (Exception e2)
+            {
+                _logger.LogError("Message {@Message} StackTrace {@StackTrace}", e2.Message, e2.StackTrace);
+                return StatusCode(500);
+            }
+        }
+
         // PUT: api/User
         [HttpPut]
         public async Task<IActionResult> Put([FromBody] UserModel model)
@@ -138,7 +204,7 @@ namespace rde.edu.do_jericho_walls.Controllers
                 return Unauthorized();
             }
 
-            if(authorization.Forbiden)
+            if (authorization.Forbiden)
             {
                 return Forbid();
             }

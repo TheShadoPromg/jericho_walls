@@ -286,6 +286,7 @@ namespace rde.edu.do_jericho_walls.Helpers
                     .Select(p => p.Name)
                     .ToList();
                 user.ServicePermissions = null;
+                user.JWT = authorization;
 
                 return new AuthorizationModel()
                 {

@@ -33,6 +33,9 @@ namespace rde.edu.do_jericho_walls.Models
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore, DefaultValueHandling = DefaultValueHandling.Ignore)]
         public IList<string> Permissions { get; set; }
 
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore, DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public string JWT { get; set; }
+
         public UserModel()
         {
             ServicePermissions = new List<Service>();
@@ -66,48 +69,69 @@ namespace rde.edu.do_jericho_walls.Models
 
     public class UserModelValidator : AbstractValidator<UserModel>
     {
-        public UserModelValidator(bool update = false)
+        public UserModelValidator(bool update = false, bool resetPassword = false)
         {
-            RuleFor(m => m.FirstName)
-                .Cascade(CascadeMode.StopOnFirstFailure)
-                .NotEmpty().WithMessage("El {PropertyName} es requerido")
-                .Length(2, 96).WithMessage("El {PropertyName} debe tener mínimo {MinLength} y máximo {MaxLength} caracteres. El {PropertyName} tiene una longitud de {TotalLength} caracteres.")
-                .Must(ValidName).WithMessage("El {PropertyName} contiene caracteres inválidos.")
-                .WithName("nombre");
-
-            RuleFor(m => m.LastName)
-               .Cascade(CascadeMode.StopOnFirstFailure)
-               .NotEmpty().WithMessage("El {PropertyName} es requerido")
-               .Length(2, 96).WithMessage("El {PropertyName} debe tener mínimo {MinLength} y máximo {MaxLength} caracteres. El {PropertyName} tiene una longitud de {TotalLength} caracteres.")
-               .Must(ValidName).WithMessage("El {PropertyName} contiene caracteres inválidos.")
-               .WithName("apellido");
-
-            RuleFor(m => m.Email)
-               .Cascade(CascadeMode.StopOnFirstFailure)
-               .NotEmpty().WithMessage("El {PropertyName} es requerido.")
-               .EmailAddress().WithMessage("El {PropertyName} es invalido.")
-               .WithName("correo electrónico");
-
-            if (!update)
+            if (resetPassword)
             {
-                RuleFor(m => m.Password)
+                RuleFor(m => m.Email)
+                  .Cascade(CascadeMode.StopOnFirstFailure)
+                  .NotEmpty().WithMessage("El {PropertyName} es requerido.")
+                  .EmailAddress().WithMessage("El {PropertyName} es invalido.")
+                  .WithName("correo electrónico");
+
+                When(m => m.Password != null, () =>
+                {
+                    RuleFor(m => m.Password)
+                     .Cascade(CascadeMode.StopOnFirstFailure)
+                     .NotEmpty().WithMessage("La {PropertyName} es requerida.")
+                     .Length(8, -1).WithMessage("La {PropertyName} debe tener mínimo {MinLength} caracteres. La {PropertyName} tiene una longitud de {TotalLength}")
+                     .Must(ValidPassword).WithMessage("La {PropertyName} debe tener mínimo un dígito, una letra mayúscula y otra minúscula.")
+                     .WithName("contraseña");
+                });
+            }
+            else
+            {
+                RuleFor(m => m.FirstName)
+                    .Cascade(CascadeMode.StopOnFirstFailure)
+                    .NotEmpty().WithMessage("El {PropertyName} es requerido")
+                    .Length(2, 96).WithMessage("El {PropertyName} debe tener mínimo {MinLength} y máximo {MaxLength} caracteres. El {PropertyName} tiene una longitud de {TotalLength} caracteres.")
+                    .Must(ValidName).WithMessage("El {PropertyName} contiene caracteres inválidos.")
+                    .WithName("nombre");
+
+                RuleFor(m => m.LastName)
+                   .Cascade(CascadeMode.StopOnFirstFailure)
+                   .NotEmpty().WithMessage("El {PropertyName} es requerido")
+                   .Length(2, 96).WithMessage("El {PropertyName} debe tener mínimo {MinLength} y máximo {MaxLength} caracteres. El {PropertyName} tiene una longitud de {TotalLength} caracteres.")
+                   .Must(ValidName).WithMessage("El {PropertyName} contiene caracteres inválidos.")
+                   .WithName("apellido");
+
+                RuleFor(m => m.Email)
+                   .Cascade(CascadeMode.StopOnFirstFailure)
+                   .NotEmpty().WithMessage("El {PropertyName} es requerido.")
+                   .EmailAddress().WithMessage("El {PropertyName} es invalido.")
+                   .WithName("correo electrónico");
+
+                if (!update)
+                {
+                    RuleFor(m => m.Password)
+                       .Cascade(CascadeMode.StopOnFirstFailure)
+                       .NotEmpty().WithMessage("La {PropertyName} es requerida.")
+                       .Length(8, -1).WithMessage("La {PropertyName} debe tener mínimo {MinLength} caracteres. La {PropertyName} tiene una longitud de {TotalLength}")
+                       .Must(ValidPassword).WithMessage("La {PropertyName} debe tener mínimo un dígito, una letra mayúscula y otra minúscula.")
+                       .WithName("contraseña");
+                }
+
+                RuleFor(m => m.TokenDuration)
                    .Cascade(CascadeMode.StopOnFirstFailure)
                    .NotEmpty().WithMessage("La {PropertyName} es requerida.")
-                   .Length(8, -1).WithMessage("La {PropertyName} debe tener mínimo {MinLength} caracteres. La {PropertyName} tiene una longitud de {TotalLength}")
-                   .Must(ValidPassword).WithMessage("La {PropertyName} debe tener mínimo un dígito, una letra mayúscula y otra minúscula.")
-                   .WithName("contraseña");
+                   .GreaterThanOrEqualTo(1).WithMessage("La {PropertyName} debe ser igual o mayor que {ComparisonValue}.")
+                   .WithName("duración del token");
+
+                RuleFor(m => m.Active)
+                  .Cascade(CascadeMode.StopOnFirstFailure)
+                  .NotNull().WithMessage("El {PropertyName} es requerida.")
+                  .WithName("estado de la cuenta");
             }
-
-            RuleFor(m => m.TokenDuration)
-               .Cascade(CascadeMode.StopOnFirstFailure)
-               .NotEmpty().WithMessage("La {PropertyName} es requerida.")
-               .GreaterThanOrEqualTo(1).WithMessage("La {PropertyName} debe ser igual o mayor que {ComparisonValue}.")
-               .WithName("duración del token");
-
-            RuleFor(m => m.Active)
-              .Cascade(CascadeMode.StopOnFirstFailure)
-              .NotNull().WithMessage("El {PropertyName} es requerida.")
-              .WithName("estado de la cuenta");
         }
 
         protected bool ValidName(string name)
