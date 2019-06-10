@@ -10,7 +10,6 @@ using System;
 using rde.edu.do_jericho_walls.Helpers;
 using System.Linq;
 using System.Collections.Generic;
-using System.Transactions;
 
 namespace rde.edu.do_jericho_walls.Repositories
 {
@@ -43,9 +42,10 @@ namespace rde.edu.do_jericho_walls.Repositories
         /// <returns></returns>
         public async Task<UserModel> GetById(int id)
         {
+            var conn = Connection;
             UserModel user = null;
 
-            var result = await Connection.QueryAsync<UserModel, Service, Permission, UserModel>(
+            var result = await conn.QueryAsync<UserModel, Service, Permission, UserModel>(
                 "ReadUserWithGrants",
                 param: new { p_id = id },
                 map: (u, service, p) =>
@@ -82,6 +82,8 @@ namespace rde.edu.do_jericho_walls.Repositories
                 commandType: CommandType.StoredProcedure
             );
 
+            conn.Close();
+
             return result.Distinct().ToList().First();
         }
 
@@ -91,46 +93,49 @@ namespace rde.edu.do_jericho_walls.Repositories
         /// <returns></returns>
         public async Task<IList<UserModel>> GetAll()
         {
-            var users = new Dictionary<int, UserModel>();
+            using (var conn = Connection)
+            {
+                var users = new Dictionary<int, UserModel>();
 
-            var result = await Connection.QueryAsync<UserModel, Service, Permission, UserModel>(
-                "ReadUserWithGrantsAll",
-                map: (u, service, p) =>
-                {
-                    if (!users.TryGetValue(u.Id, out UserModel user))
+                var result = await conn.QueryAsync<UserModel, Service, Permission, UserModel>(
+                    "ReadUserWithGrantsAll",
+                    map: (u, service, p) =>
                     {
-                        user = u;
-                        users.Add(user.Id, user);
-                    }
-
-                    if (service != null)
-                    {
-                        var s = user.ServicePermissions.Where(s => s.Name == service.Name).FirstOrDefault();
-
-                        if (s != null)
+                        if (!users.TryGetValue(u.Id, out UserModel user))
                         {
-                            if (p != null)
+                            user = u;
+                            users.Add(user.Id, user);
+                        }
+
+                        if (service != null)
+                        {
+                            var s = user.ServicePermissions.Where(s => s.Name == service.Name).FirstOrDefault();
+
+                            if (s != null)
                             {
-                                s.Permissions.Add(p);
+                                if (p != null)
+                                {
+                                    s.Permissions.Add(p);
+                                }
+                            }
+                            else
+                            {
+                                if (p != null)
+                                {
+                                    service.Permissions.Add(p);
+                                }
+                                user.ServicePermissions.Add(service);
                             }
                         }
-                        else
-                        {
-                            if (p != null)
-                            {
-                                service.Permissions.Add(p);
-                            }
-                            user.ServicePermissions.Add(service);
-                        }
-                    }
 
-                    return user;
-                },
-                splitOn: "name,name",
-                commandType: CommandType.StoredProcedure
-            );
+                        return user;
+                    },
+                    splitOn: "name,name",
+                    commandType: CommandType.StoredProcedure
+                );
 
-            return result.Distinct().ToList();
+                return result.Distinct().ToList();
+            }
         }
 
         /// <summary>
@@ -144,34 +149,38 @@ namespace rde.edu.do_jericho_walls.Repositories
         /// <returns>Returns a <see cref="UserModel"/> with the id and identifier assign.</returns>
         public async Task<UserModel> Create(UserModel model)
         {
-            //Generate GUID for the database user registry
-            var guid = Guid.NewGuid();
+            using (var conn = Connection)
+            {
+                //Generate GUID for the database user registry
+                var guid = Guid.NewGuid();
 
-            //Generate RSA keys for JWTs
-            var csp = RSA.Create(2048);
-            var publicKey = csp.ExportParameters(false);
-            var privateKey = csp.ExportParameters(true);
+                //Generate RSA keys for JWTs
+                var csp = RSA.Create(2048);
+                var publicKey = csp.ExportParameters(false);
+                var privateKey = csp.ExportParameters(true);
 
-            //Create user registry
-            var id = await Connection.QueryFirstAsync<int>("CreateUser",
-                new
-                {
-                    p_guid = guid.ToString(),
-                    p_firstName = model.FirstName,
-                    p_lastName = model.LastName,
-                    p_email = model.Email,
-                    p_password = AuthenticationHelper.HashPassword(model.Password),
-                    p_publicKey = AuthenticationHelper.SerializeRSAKey(publicKey),
-                    p_privateKey = AuthenticationHelper.SerializeRSAKey(privateKey),
-                    p_active = model.Active,
-                    p_recordBy = config.GetValue<string>("SystemName"),
-                },
-                commandType: CommandType.StoredProcedure
-            );
+                //Create user registry
+                var id = await conn.QueryFirstAsync<int>("CreateUser",
+                    new
+                    {
+                        p_guid = guid.ToString(),
+                        p_firstName = model.FirstName,
+                        p_lastName = model.LastName,
+                        p_email = model.Email,
+                        p_password = AuthenticationHelper.HashPassword(model.Password),
+                        p_publicKey = AuthenticationHelper.SerializeRSAKey(publicKey),
+                        p_privateKey = AuthenticationHelper.SerializeRSAKey(privateKey),
+                        p_active = model.Active,
+                        p_tokenDuration = model.TokenDuration,
+                        p_recordBy = config.GetValue<string>("SystemName"),
+                    },
+                    commandType: CommandType.StoredProcedure
+                );
 
-            model.Id = id;
-            model.Identifier = guid;
-            return model;
+                model.Id = id;
+                model.Identifier = guid;
+                return model;
+            }
         }
 
         /// <summary>
@@ -184,92 +193,110 @@ namespace rde.edu.do_jericho_walls.Repositories
         /// <returns></returns>
         public async Task Updated(UserModel model, Guid accessBy)
         {
-            using (var transaction = new TransactionScope())
+            using (var conn = Connection)
             {
-                var conn = Connection;
+                using (var transaction = conn.BeginTransaction())
+                {
+
+                    await conn.ExecuteAsync(
+                        "UpdateUser",
+                        new
+                        {
+                            p_id = model.Id,
+                            p_identifier = model.Identifier,
+                            p_email = model.Email,
+                            p_firstName = model.FirstName,
+                            p_lastName = model.LastName,
+                            p_active = model.Active,
+                            p_tokenDuration = model.TokenDuration
+                        },
+                        commandType: CommandType.StoredProcedure
+                    );
+
+                    foreach (var service in model.ServicePermissions)
+                    {
+                        await conn.ExecuteAsync(
+                            "UpdateOrCreateServiceUserAccess",
+                            new
+                            {
+                                p_serviceIdentifier = service.Identifier,
+                                p_email = model.Email,
+                                p_hasAccess = service.HasAccess,
+                                p_createdByUserIdentifier = accessBy,
+                                p_recordBy = config.GetValue<string>("SystemName")
+                            },
+                            commandType: CommandType.StoredProcedure
+                        );
+
+                        foreach (var permission in service.Permissions)
+                        {
+                            await conn.ExecuteAsync(
+                            "UpdateOrCreateServiceUserPermissions",
+                            new
+                            {
+                                p_serviceIdentifier = service.Identifier,
+                                p_email = model.Email,
+                                p_permissionName = permission.Name,
+                                p_hasAccess = permission.HasAccess,
+                                p_createdByUserIdentifier = accessBy,
+                                p_recordBy = config.GetValue<string>("SystemName")
+                            },
+                            commandType: CommandType.StoredProcedure
+                        );
+                        }
+                    }
+
+                    transaction.Commit();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Resets user password. If <see cref="UserModel.Password"/> is null
+        /// it generates a <see cref="RandomString"/> for the password.
+        /// </summary>
+        /// <param name="model"></param>
+        /// <param name="accessBy"></param>
+        /// <returns>The the new password</returns>
+        public async Task<string> ResetPassword(UserModel model, Guid accessBy)
+        {
+            using (var conn = Connection)
+            {
+                //Generate RSA keys for JWTs
+                var csp = RSA.Create(2048);
+                var publicKey = csp.ExportParameters(false);
+                var privateKey = csp.ExportParameters(true);
+                var pass = RandomString();
+
+                if (model.Password != null)
+                {
+                    pass = model.Password;
+                }
+
+                var password = AuthenticationHelper.HashPassword(pass);
 
                 await conn.ExecuteAsync(
-                    "UpdateUser",
+                    "UpdateResetPassword",
                     new
                     {
-                        p_id = model.Id,
-                        p_identifier = model.Identifier,
                         p_email = model.Email,
-                        p_firstName = model.FirstName,
-                        p_lastName = model.LastName,
-                        p_active = model.Active,
-                        p_tokenDuration = model.TokenDuration
+                        p_password = password,
+                        p_publicKey = AuthenticationHelper.SerializeRSAKey(publicKey),
+                        p_privateKey = AuthenticationHelper.SerializeRSAKey(privateKey),
                     },
                     commandType: CommandType.StoredProcedure
                 );
 
-                foreach (var service in model.ServicePermissions)
-                {
-                    await conn.ExecuteAsync(
-                        "UpdateOrCreateServiceUserAccess",
-                        new
-                        {
-                            p_serviceIdentifier = service.Identifier,
-                            p_email = model.Email,
-                            p_hasAccess = service.HasAccess,
-                            p_createdByUserIdentifier = accessBy,
-                            p_recordBy = config.GetValue<string>("SystemName")
-                        },
-                        commandType: CommandType.StoredProcedure
-                    );
-
-                    foreach (var permission in service.Permissions)
-                    {
-                        await conn.ExecuteAsync(
-                        "UpdateOrCreateServiceUserPermissions",
-                        new
-                        {
-                            p_serviceIdentifier = service.Identifier,
-                            p_email = model.Email,
-                            p_permissionName = permission.Name,
-                            p_hasAccess = permission.HasAccess,
-                            p_createdByUserIdentifier = accessBy,
-                            p_recordBy = config.GetValue<string>("SystemName")
-                        },
-                        commandType: CommandType.StoredProcedure
-                    );
-                    }
-                }
-
-                transaction.Complete();
+                return pass;
             }
         }
 
-        public async Task<string> ResetPassword(UserModel model, Guid accessBy)
-        {
-            //Generate RSA keys for JWTs
-            var csp = RSA.Create(2048);
-            var publicKey = csp.ExportParameters(false);
-            var privateKey = csp.ExportParameters(true);
-            var pass = RandomString();
-
-            if(model.Password != null)
-            {
-                pass = model.Password;
-            }
-
-            var password = AuthenticationHelper.HashPassword(pass);
-
-            await Connection.ExecuteAsync(
-                "UpdateResetPassword",
-                new
-                {
-                    p_email = model.Email,
-                    p_password = password,
-                    p_publicKey = AuthenticationHelper.SerializeRSAKey(publicKey),
-                    p_privateKey = AuthenticationHelper.SerializeRSAKey(privateKey),
-                },
-                commandType: CommandType.StoredProcedure
-            );
-
-            return pass;
-        }
-
+        /// <summary>
+        /// Generates a random string to assign a password. The passwords always
+        /// starts with RDE27 to ensure the password has an uppercase character 
+        /// and a digit.
+        /// </summary>
+        /// <returns></returns>
         public string RandomString()
         {
             Random random = new Random();

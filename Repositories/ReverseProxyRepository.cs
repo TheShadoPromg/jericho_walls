@@ -30,18 +30,26 @@ namespace rde.edu.do_jericho_walls.Repositories
             }
         }
 
+        /// <summary>
+        /// Gets a <see cref="ServiceModel"/> from the given name.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
         public async Task<ServiceModel> GetByName(string name)
         {
-            var result = await Connection.QueryFirstOrDefaultAsync<ServiceModel>(
-                "ReadServiceForReverseProxy",
-                new
-                {
-                    p_name = name,
-                },
-                commandType: CommandType.StoredProcedure
-            );
+            using (var conn = Connection)
+            {
+                var result = await Connection.QueryFirstOrDefaultAsync<ServiceModel>(
+                    "ReadServiceForReverseProxy",
+                    new
+                    {
+                        p_name = name,
+                    },
+                    commandType: CommandType.StoredProcedure
+                );
 
-            return result;
+                return result;
+            }
         }
     }
 }

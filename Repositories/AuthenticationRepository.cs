@@ -41,18 +41,21 @@ namespace rde.edu.do_jericho_walls.Repositories
         /// <returns>Returns null if user is not found, or account is inactive.</returns>
         public async Task<AuthenticationSecrets> GetRSAKeys(UserModel model)
         {
-            var secrets = await Connection.QueryFirstOrDefaultAsync<AuthenticationSecrets>(
-                "ReadUserKeys",
-                new
-                {
-                    p_id = model.Id,
-                    p_identifier = model.Identifier,
-                    p_email = model.Email
-                },
-                commandType: CommandType.StoredProcedure
-            );
+            using (var conn = Connection)
+            {
+                var secrets = await conn.QueryFirstOrDefaultAsync<AuthenticationSecrets>(
+                    "ReadUserKeys",
+                    new
+                    {
+                        p_id = model.Id,
+                        p_identifier = model.Identifier,
+                        p_email = model.Email
+                    },
+                    commandType: CommandType.StoredProcedure
+                );
 
-            return secrets == null ? null : secrets.Active ? secrets : null;
+                return secrets == null ? null : secrets.Active ? secrets : null;
+            }
         }
 
         /// <summary>
@@ -66,21 +69,24 @@ namespace rde.edu.do_jericho_walls.Repositories
         /// <returns>Returns null if user is not found, password doesn't match or account is inactive.</returns>
         public async Task<AuthenticationSecrets> ValidatePassword(AuthenticationModel model)
         {
-            var secrets = await Connection.QueryFirstOrDefaultAsync<AuthenticationSecrets>(
-                "ReadUserPassword",
-                new { p_email = model.Email },
-                commandType: CommandType.StoredProcedure
-            );
-
-            if (secrets == null || (secrets != null && (secrets.Password == null || !secrets.Active)))
+            using (var conn = Connection)
             {
-                return null;
+                var secrets = await conn.QueryFirstOrDefaultAsync<AuthenticationSecrets>(
+                    "ReadUserPassword",
+                    new { p_email = model.Email },
+                    commandType: CommandType.StoredProcedure
+                );
+
+                if (secrets == null || (secrets != null && (secrets.Password == null || !secrets.Active)))
+                {
+                    return null;
+                }
+
+                string[] saltAndHash = secrets.Password.Split("|");
+                string hash = AuthenticationHelper.HashPasswordWithSalt(model.Password, saltAndHash[0]);
+
+                return hash == saltAndHash[1] ? secrets : null;
             }
-
-            string[] saltAndHash = secrets.Password.Split("|");
-            string hash = AuthenticationHelper.HashPasswordWithSalt(model.Password, saltAndHash[0]);
-
-            return hash == saltAndHash[1] ? secrets : null;
         }
     }
 }
