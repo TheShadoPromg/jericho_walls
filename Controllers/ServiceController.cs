@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -56,6 +58,43 @@ namespace rde.edu.do_jericho_walls.Controllers
             var services = await _repository.GetAll();
 
             return Ok(services);
+        }
+
+        // GET: api/Service
+        [HttpGet("[action]/{service}")]
+        public async Task<IActionResult> NewKey(string service)
+        {
+            //var authorization = await AuthenticationHelper.Authorize(
+            //    Request.Headers["Authorization"],
+            //    _authenticationRepository,
+            //    _logger,
+            //    _config.GetValue<string>("JWTIssuer"),
+            //    "read-all-service"
+            //);
+
+            //if (authorization == null)
+            //{
+            //    return Unauthorized();
+            //}
+
+            //if (authorization.Forbiden)
+            //{
+            //    return Forbid();
+            //}
+            var serv = await _repository.GetByName(service);
+
+            if (serv == null)
+            {
+                return new BadRequestObjectResult(new { Message = $"El servicio {service} no se encontró en el sistema." });
+            }
+
+            var rsa = RSA.Create();
+            rsa.ImportParameters(AuthenticationHelper.DeserializeRSAKey(serv.PrivateKey));
+            rsa.ImportParameters(AuthenticationHelper.DeserializeRSAKey(serv.PublicKey));
+
+            var key = rsa.SignData(Encoding.ASCII.GetBytes("Secret Key"), HashAlgorithmName.SHA512, RSASignaturePadding.Pss);
+
+            return Ok(new { Message = key });
         }
 
         // POST: api/Service

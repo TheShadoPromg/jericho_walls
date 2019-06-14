@@ -7,6 +7,7 @@ namespace rde.edu.do_jericho_walls.Interfaces
 {
     public interface IServiceRepository
     {
+        Task<ServiceModel> GetByName(string name);
         Task<IList<ServiceModel>> GetAll();
         Task<ServiceModel> Create(ServiceModel model, Guid accessBy);
         Task Update(ServiceModel model, Guid accessBy);

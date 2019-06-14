@@ -36,6 +36,28 @@ namespace rde.edu.do_jericho_walls.Repositories
         }
 
         /// <summary>
+        /// Gets a <see cref="ServiceModel"/> from the given name.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        public async Task<ServiceModel> GetByName(string name)
+        {
+            using (var conn = Connection)
+            {
+                var result = await conn.QueryFirstOrDefaultAsync<ServiceModel>(
+                    "ReadServiceByName",
+                    new
+                    {
+                        p_name = name,
+                    },
+                    commandType: CommandType.StoredProcedure
+                );
+
+                return result;
+            }
+        }
+
+        /// <summary>
         /// Get all services created.
         /// </summary>
         /// <returns>A IList of <see cref="ServiceModel"/></returns>

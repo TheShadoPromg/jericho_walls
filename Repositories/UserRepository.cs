@@ -257,7 +257,7 @@ namespace rde.edu.do_jericho_walls.Repositories
         /// </summary>
         /// <param name="model"></param>
         /// <param name="accessBy"></param>
-        /// <returns>The the new password</returns>
+        /// <returns>The new password</returns>
         public async Task<string> ResetPassword(UserModel model, Guid accessBy)
         {
             using (var conn = Connection)

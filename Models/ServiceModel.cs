@@ -16,6 +16,7 @@ namespace rde.edu.do_jericho_walls.Models
         public int Port { get; set; }
         [JsonProperty("public_key")]
         public string PublicKey { get; set; }
+        public string PrivateKey { get; set; }
         public bool Active { get; set; }
         [JsonProperty("created_by")]
         public string CreatedBy { get; set; }

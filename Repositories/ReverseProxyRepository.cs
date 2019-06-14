@@ -39,8 +39,8 @@ namespace rde.edu.do_jericho_walls.Repositories
         {
             using (var conn = Connection)
             {
-                var result = await Connection.QueryFirstOrDefaultAsync<ServiceModel>(
-                    "ReadServiceForReverseProxy",
+                var result = await conn.QueryFirstOrDefaultAsync<ServiceModel>(
+                    "ReadServiceByName",
                     new
                     {
                         p_name = name,
