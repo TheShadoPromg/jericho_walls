@@ -3,18 +3,20 @@
     "windowsAuthentication": false,
     "anonymousAuthentication": true,
     "iisExpress": {
-      "applicationUrl": "http://localhost:5000"
+      "applicationUrl": "http://localhost:5000",
+      "sslPort": 0
     }
   },
   "$schema": "http://json.schemastore.org/launchsettings.json",
   "profiles": {
     "IIS Express": {
       "commandName": "IISExpress",
-      "launchBrowser": true,
       "launchUrl": "api/values",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
-      }
+      },
+      "httpPort": 5000,
+      "useSSL": false
     },
     "rde.edu.do_jericho_walls": {
       "commandName": "Project",
@@ -29,7 +31,7 @@
       "commandName": "Docker",
       "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}/api/values",
       "environmentVariables": {
-        "ASPNETCORE_URLS": "http://+:80",
+        "ASPNETCORE_URLS": "http://+:80"
       },
       "httpPort": 5000,
       "useSSL": false

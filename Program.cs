@@ -2,6 +2,7 @@ using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Serilog;
+using Serilog.Sinks.SystemConsole.Themes;
 using System;
 
 namespace rde.edu.do_jericho_walls
@@ -13,7 +14,7 @@ namespace rde.edu.do_jericho_walls
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.Information()
                 .Enrich.FromLogContext()
-                .WriteTo.ColoredConsole()
+                .WriteTo.Console(theme: AnsiConsoleTheme.Literate)
                 .CreateLogger();
 
             try

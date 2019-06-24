@@ -10,16 +10,19 @@ using System;
 using rde.edu.do_jericho_walls.Helpers;
 using System.Linq;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace rde.edu.do_jericho_walls.Repositories
 {
     public class UserRepository : IUserRepository
     {
         private readonly IConfiguration config;
+        private readonly ILogger<UserRepository> logger;
 
-        public UserRepository(IConfiguration config)
+        public UserRepository(IConfiguration config, ILogger<UserRepository> logger)
         {
             this.config = config;
+            this.logger = logger;
         }
 
         /// <summary>
@@ -96,6 +99,7 @@ namespace rde.edu.do_jericho_walls.Repositories
             using (var conn = Connection)
             {
                 var users = new Dictionary<int, UserModel>();
+                var unassignService = new Dictionary<string, Service>();
 
                 var result = await conn.QueryAsync<UserModel, Service, Permission, UserModel>(
                     "ReadUserWithGrantsAll",
@@ -134,7 +138,45 @@ namespace rde.edu.do_jericho_walls.Repositories
                     commandType: CommandType.StoredProcedure
                 );
 
-                return result.Distinct().ToList();
+                var nonAssign = await conn.QueryAsync<Service, Permission, Service>(
+                    "ReadUserWithGrantsAllNonAssign",
+                    map: (s, p) =>
+                    {
+                        if (!unassignService.TryGetValue(s.Name, out Service service))
+                        {
+                            service = s;
+                            unassignService.Add(service.Name, service);
+                        }
+
+                        if (s != null && p != null)
+                        {
+                            service.Permissions.Add(p);
+                        }
+
+                        return service;
+                    },
+                    splitOn: "name",
+                    commandType: CommandType.StoredProcedure
+                );
+
+                var userList = result.Distinct().ToList();
+                var servicesList = nonAssign.Distinct().ToList();
+
+                foreach (var user in userList)
+                {
+                    foreach (var entity in servicesList)
+                    {
+                        logger.LogInformation($"Entity: {user.ServicePermissions}");
+                        //var e = user.ServicePermissions.FirstOrDefault(e => e.Name == entity.Name);
+
+                        //if (e == null)
+                        //{
+                        //    user.ServicePermissions.Add(e);
+                        //}
+                    }
+                }
+
+                return userList;
             }
         }
 
@@ -301,7 +343,7 @@ namespace rde.edu.do_jericho_walls.Repositories
         {
             Random random = new Random();
             const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789asdfghjklqwertyuiopzxcvbnm";
-            var str =  new string(Enumerable.Repeat(chars, 8)
+            var str = new string(Enumerable.Repeat(chars, 8)
               .Select(s => s[random.Next(s.Length)]).ToArray());
             return $"RDE27{str}";
         }
