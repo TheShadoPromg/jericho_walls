@@ -10,19 +10,16 @@ using System;
 using rde.edu.do_jericho_walls.Helpers;
 using System.Linq;
 using System.Collections.Generic;
-using Microsoft.Extensions.Logging;
 
 namespace rde.edu.do_jericho_walls.Repositories
 {
     public class UserRepository : IUserRepository
     {
-        private readonly IConfiguration config;
-        private readonly ILogger<UserRepository> logger;
+        private readonly IConfiguration _config;
 
-        public UserRepository(IConfiguration config, ILogger<UserRepository> logger)
+        public UserRepository(IConfiguration config)
         {
-            this.config = config;
-            this.logger = logger;
+            this._config = config;
         }
 
         /// <summary>
@@ -32,7 +29,7 @@ namespace rde.edu.do_jericho_walls.Repositories
         {
             get
             {
-                var conn = new MySqlConnection(config.GetConnectionString("DefaultConnection"));
+                var conn = new MySqlConnection(_config.GetConnectionString("DefaultConnection"));
                 conn.Open();
                 return conn;
             }
@@ -50,7 +47,7 @@ namespace rde.edu.do_jericho_walls.Repositories
 
             var result = await conn.QueryAsync<UserModel, Service, Permission, UserModel>(
                 "ReadUserWithGrants",
-                param: new { p_id = id },
+                param: new {p_id = id},
                 map: (u, service, p) =>
                 {
                     if (user == null)
@@ -58,25 +55,25 @@ namespace rde.edu.do_jericho_walls.Repositories
                         user = u;
                     }
 
-                    if (service != null)
-                    {
-                        var s = user.ServicePermissions.Where(s => s.Name == service.Name).FirstOrDefault();
+                    if (service == null) return user;
 
-                        if (s != null)
+                    var s = user.ServicePermissions.FirstOrDefault(s => s.Name == service.Name);
+
+                    if (s != null)
+                    {
+                        if (p != null)
                         {
-                            if (p != null)
-                            {
-                                s.Permissions.Add(p);
-                            }
+                            s.Permissions.Add(p);
                         }
-                        else
+                    }
+                    else
+                    {
+                        if (p != null)
                         {
-                            if (p != null)
-                            {
-                                service.Permissions.Add(p);
-                            }
-                            user.ServicePermissions.Add(service);
+                            service.Permissions.Add(p);
                         }
+
+                        user.ServicePermissions.Add(service);
                     }
 
                     return user;
@@ -128,6 +125,7 @@ namespace rde.edu.do_jericho_walls.Repositories
                                 {
                                     service.Permissions.Add(p);
                                 }
+
                                 user.ServicePermissions.Add(service);
                             }
                         }
@@ -166,13 +164,10 @@ namespace rde.edu.do_jericho_walls.Repositories
                 {
                     foreach (var entity in servicesList)
                     {
-                        logger.LogInformation($"Entity: {user.ServicePermissions}");
-                        //var e = user.ServicePermissions.FirstOrDefault(e => e.Name == entity.Name);
-
-                        //if (e == null)
-                        //{
-                        //    user.ServicePermissions.Add(e);
-                        //}
+                        if (user.ServicePermissions.All(s => s.Name != entity.Name))
+                        {
+                            user.ServicePermissions.Add(entity);
+                        }
                     }
                 }
 
@@ -214,7 +209,7 @@ namespace rde.edu.do_jericho_walls.Repositories
                         p_privateKey = AuthenticationHelper.SerializeRSAKey(privateKey),
                         p_active = model.Active,
                         p_tokenDuration = model.TokenDuration,
-                        p_recordBy = config.GetValue<string>("SystemName"),
+                        p_recordBy = _config.GetValue<string>("SystemName"),
                     },
                     commandType: CommandType.StoredProcedure
                 );
@@ -239,7 +234,6 @@ namespace rde.edu.do_jericho_walls.Repositories
             {
                 using (var transaction = conn.BeginTransaction())
                 {
-
                     await conn.ExecuteAsync(
                         "UpdateUser",
                         new
@@ -265,26 +259,28 @@ namespace rde.edu.do_jericho_walls.Repositories
                                 p_email = model.Email,
                                 p_hasAccess = service.HasAccess,
                                 p_createdByUserIdentifier = accessBy,
-                                p_recordBy = config.GetValue<string>("SystemName")
+                                p_recordBy = _config.GetValue<string>("SystemName")
                             },
                             commandType: CommandType.StoredProcedure
                         );
 
                         foreach (var permission in service.Permissions)
                         {
+                            if(string.IsNullOrEmpty(permission.Name)) continue;
+                            
                             await conn.ExecuteAsync(
-                            "UpdateOrCreateServiceUserPermissions",
-                            new
-                            {
-                                p_serviceIdentifier = service.Identifier,
-                                p_email = model.Email,
-                                p_permissionName = permission.Name,
-                                p_hasAccess = permission.HasAccess,
-                                p_createdByUserIdentifier = accessBy,
-                                p_recordBy = config.GetValue<string>("SystemName")
-                            },
-                            commandType: CommandType.StoredProcedure
-                        );
+                                "UpdateOrCreateServiceUserPermissions",
+                                new
+                                {
+                                    p_serviceIdentifier = service.Identifier,
+                                    p_email = model.Email,
+                                    p_permissionName = permission.Name,
+                                    p_hasAccess = permission.HasAccess,
+                                    p_createdByUserIdentifier = accessBy,
+                                    p_recordBy = _config.GetValue<string>("SystemName")
+                                },
+                                commandType: CommandType.StoredProcedure
+                            );
                         }
                     }
 
@@ -341,10 +337,10 @@ namespace rde.edu.do_jericho_walls.Repositories
         /// <returns></returns>
         public string RandomString()
         {
-            Random random = new Random();
+            var random = new Random();
             const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789asdfghjklqwertyuiopzxcvbnm";
             var str = new string(Enumerable.Repeat(chars, 8)
-              .Select(s => s[random.Next(s.Length)]).ToArray());
+                .Select(s => s[random.Next(s.Length)]).ToArray());
             return $"RDE27{str}";
         }
 
