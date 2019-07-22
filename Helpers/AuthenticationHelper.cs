@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 using System.Xml.Serialization;
 using System.Linq;
 using Trivial.Security;
-using System.Collections.Generic;
 
 namespace rde.edu.do_jericho_walls.Helpers
 {
@@ -212,6 +211,15 @@ namespace rde.edu.do_jericho_walls.Helpers
             }
         }
 
+        /// <summary>
+        /// Same functionality as <see cref="Authorize"/> in the variation that this validate for a given service.
+        /// </summary>
+        /// <param name="authorization"></param>
+        /// <param name="repository"></param>
+        /// <param name="logger"></param>
+        /// <param name="issuer"></param>
+        /// <param name="service"></param>
+        /// <returns></returns>
         public static async Task<AuthorizationModel> AuthorizeForProxy(string authorization, IAuthenticationRepository repository, ILogger logger, string issuer, string service)
         {
             try
